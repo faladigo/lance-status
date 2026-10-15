@@ -1,0 +1,23 @@
+# O GitHub desliga agendamentos de repositório público sem atividade por 60 dias.
+# Uma vez por mês este job grava a data, o que mantém o monitor ligado.
+name: Manter monitor ativo
+
+on:
+  schedule:
+    - cron: "17 6 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  manter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > ultima-verificacao-mensal.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ultima-verificacao-mensal.txt
+          git commit -m "Manter monitor ativo" && git push

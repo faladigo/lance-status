@@ -1,0 +1,37 @@
+# Monitor externo do Lance: confere de fora do servidor se o site responde.
+# Falhou = o GitHub manda e-mail para o dono do repositório (notificação de workflow com falha).
+name: Lance no ar
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # a cada 15 minutos (o GitHub pode atrasar alguns minutos)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Site e saúde da aplicação
+        run: |
+          set -u
+          falhas=""
+          for url in "https://leilaolance.com.br/saude" "https://leilaolance.com.br/"; do
+            ok=""
+            for tentativa in 1 2 3; do   # 3 tentativas: um soluço de rede não vira alarme
+              codigo=$(curl -s -o /tmp/resp -w "%{http_code}" --max-time 20 "$url" || echo 000)
+              if [ "$codigo" = "200" ]; then
+                if [ "$url" != "https://leilaolance.com.br/saude" ] || grep -q '"ok":true' /tmp/resp; then ok=1; break; fi
+              fi
+              sleep 20
+            done
+            if [ -z "$ok" ]; then falhas="$falhas $url (HTTP $codigo)"; fi
+          done
+          if [ -n "$falhas" ]; then
+            echo "::error::Lance fora do ar:$falhas"
+            exit 1
+          fi
+          echo "Lance no ar."
